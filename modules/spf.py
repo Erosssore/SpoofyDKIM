@@ -18,50 +18,20 @@ class SPF:
             self.spf_dns_query_count = self.get_spf_dns_queries()
             self.too_many_dns_queries = self.spf_dns_query_count > 10
 
-    '''
-    Changes commited by Erossore.
-    Note that the changes here were implemented based on practical testing of Spoofy
-    that indicated that the SPF parsing functions were not properly implemented.
-    '''
     def get_spf_record(self, domain=None):
         """Fetches the SPF record for the specified domain."""
         try:
             if not domain:
                 domain = self.domain
-
             resolver = dns.resolver.Resolver()
-
-            # Resolvers for Cloudflare, Google, and Quad9 in that order
-            #               1.1.1.1     8.8.8.8     9.9.9.9
-            fallback_resolvers = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-
-            if self.dns_server and self.dns_server not in fallback_resolvers:
-                resolver.nameservers = [self.dns_server] + fallback_resolvers
-            else:
-                resolver.nameservers = fallback_resolvers
-
-            # Query TXT records
-            query_result = resolver.resolve(domain, "TXT", lifetime=5)
-
+            resolver.nameservers = [self.dns_server, "1.1.1.1", "8.8.8.8"]
+            query_result = resolver.resolve(domain, "TXT")
             for record in query_result:
-                # Join TXT strings in the associated format.
-                # ambc.com for example
-                # v=spf1 ip4:52.146.15.77/32 include:spf.protection.outlook.com -all
-                try:
-                    txt = "".join(s.decode("utf-8") for s in record.strings)
-                except AttributeError:
-                    txt = str(record)
-                # Ensuring we only accept the single version of spf1
-                if "v=spf1" in txt:
-                    return txt
+                if "spf1" in str(record):
+                    spf_record = str(record).replace('"', "")
+                    return spf_record
             return None
-
-        # Verbose outputs for exceptions
-        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.Timeout) as e:
-            print(f"[!] SPF query failed for {domain}: {e}")
-            return None
-        except Exception as e:
-            print(f"[!] Unexpected SPF error for {domain}: {e}")
+        except Exception:
             return None
 
     def get_spf_all_string(self):

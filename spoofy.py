@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 
-# spoofy.py
 import argparse
 import threading
 from queue import Queue
@@ -10,78 +9,54 @@ from modules.dmarc import DMARC
 from modules.bimi import BIMI
 from modules.spoofing import Spoofing
 from modules import report
+from modules.clean import clean_domains_from_file
 
 print_lock = threading.Lock()
 
 
 def process_domain(domain):
-    """Process a domain to gather DNS, SPF, DMARC, and BIMI records, and evaluate spoofing potential."""
     dns_info = DNS(domain)
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
     bimi_info = BIMI(domain, dns_info.dns_server)
 
-    spf_record = spf.spf_record
-    spf_all = spf.all_mechanism
-    spf_dns_query_count = spf.spf_dns_query_count
-    spf_too_many_dns_queries = spf.too_many_dns_queries
-
-    dmarc_record = dmarc.dmarc_record
-    dmarc_p = dmarc.policy
-    dmarc_pct = dmarc.pct
-    dmarc_aspf = dmarc.aspf
-    dmarc_sp = dmarc.sp
-    dmarc_fo = dmarc.fo
-    dmarc_rua = dmarc.rua
-
-    bimi_record = bimi_info.bimi_record
-    bimi_version = bimi_info.version
-    bimi_location = bimi_info.location
-    bimi_authority = bimi_info.authority
-
     spoofing_info = Spoofing(
         domain,
-        dmarc_record,
-        dmarc_p,
-        dmarc_aspf,
-        spf_record,
-        spf_all,
-        spf_dns_query_count,
-        dmarc_sp,
-        dmarc_pct,
+        dmarc.dmarc_record,
+        dmarc.policy,
+        dmarc.aspf,
+        spf.spf_record,
+        spf.all_mechanism,
+        spf.spf_dns_query_count,
+        dmarc.sp,
+        dmarc.pct,
     )
 
-    domain_type = spoofing_info.domain_type
-    spoofing_possible = spoofing_info.spoofing_possible
-    spoofing_type = spoofing_info.spoofing_type
-
-    result = {
+    return {
         "DOMAIN": domain,
-        "DOMAIN_TYPE": domain_type,
+        "DOMAIN_TYPE": spoofing_info.domain_type,
         "DNS_SERVER": dns_info.dns_server,
-        "SPF": spf_record,
-        "SPF_MULTIPLE_ALLS": spf_all,
-        "SPF_NUM_DNS_QUERIES": spf_dns_query_count,
-        "SPF_TOO_MANY_DNS_QUERIES": spf_too_many_dns_queries,
-        "DMARC": dmarc_record,
-        "DMARC_POLICY": dmarc_p,
-        "DMARC_PCT": dmarc_pct,
-        "DMARC_ASPF": dmarc_aspf,
-        "DMARC_SP": dmarc_sp,
-        "DMARC_FORENSIC_REPORT": dmarc_fo,
-        "DMARC_AGGREGATE_REPORT": dmarc_rua,
-        "BIMI_RECORD": bimi_record,
-        "BIMI_VERSION": bimi_version,
-        "BIMI_LOCATION": bimi_location,
-        "BIMI_AUTHORITY": bimi_authority,
-        "SPOOFING_POSSIBLE": spoofing_possible,
-        "SPOOFING_TYPE": spoofing_type,
+        "SPF": spf.spf_record,
+        "SPF_MULTIPLE_ALLS": spf.all_mechanism,
+        "SPF_NUM_DNS_QUERIES": spf.spf_dns_query_count,
+        "SPF_TOO_MANY_DNS_QUERIES": spf.too_many_dns_queries,
+        "DMARC": dmarc.dmarc_record,
+        "DMARC_POLICY": dmarc.policy,
+        "DMARC_PCT": dmarc.pct,
+        "DMARC_ASPF": dmarc.aspf,
+        "DMARC_SP": dmarc.sp,
+        "DMARC_FORENSIC_REPORT": dmarc.fo,
+        "DMARC_AGGREGATE_REPORT": dmarc.rua,
+        "BIMI_RECORD": bimi_info.bimi_record,
+        "BIMI_VERSION": bimi_info.version,
+        "BIMI_LOCATION": bimi_info.location,
+        "BIMI_AUTHORITY": bimi_info.authority,
+        "SPOOFING_POSSIBLE": spoofing_info.spoofing_possible,
+        "SPOOFING_TYPE": spoofing_info.spoofing_type,
     }
-    return result
 
 
 def worker(domain_queue, print_lock, output, results):
-    """Worker function to process domains and output results."""
     while True:
         domain = domain_queue.get()
         if domain is None:
@@ -101,27 +76,21 @@ def main():
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-d", type=str, help="Single domain to process.")
-    group.add_argument(
-        "-iL", type=str, help="File containing a list of domains to process."
-    )
+    group.add_argument("-iL", type=str, help="File containing a list of domains.")
     parser.add_argument(
-        "-o",
-        type=str,
-        choices=["stdout", "xls"],
-        default="stdout",
-        help="Output format: stdout or xls (default: stdout).",
+        "-o", type=str, choices=["stdout", "xls"], default="stdout", help="Output format"
     )
-    parser.add_argument(
-        "-t", type=int, default=4, help="Number of threads to use (default: 4)"
-    )
+    parser.add_argument("-t", type=int, default=4, help="Number of threads")
 
     args = parser.parse_args()
 
     if args.d:
         domains = [args.d]
     elif args.iL:
-        with open(args.iL, "r") as file:
-            domains = [line.strip() for line in file]
+        temp_path = ".spoofy_autoclean.txt"
+        clean_domains_from_file(args.iL, temp_path)
+        with open(temp_path, "r") as f:
+            domains = [line.strip() for line in f if line.strip()]
 
     domain_queue = Queue()
     results = []
@@ -143,7 +112,7 @@ def main():
         report.write_to_excel(results)
         print("Results written to output.xlsx")
 
-    for _ in range(len(threads)):
+    for _ in threads:
         domain_queue.put(None)
     for thread in threads:
         thread.join()
