@@ -1,5 +1,3 @@
-# modules/spf.py
-
 import dns.resolver
 import re
 
@@ -19,7 +17,6 @@ class SPF:
             self.too_many_dns_queries = self.spf_dns_query_count > 10
 
     def get_spf_record(self, domain=None):
-        """Fetches the SPF record for the specified domain."""
         try:
             if not domain:
                 domain = self.domain
@@ -35,8 +32,6 @@ class SPF:
             return None
 
     def get_spf_all_string(self):
-        """Returns the string value of the 'all' mechanism in the SPF record."""
-
         spf_record = self.spf_record
         visited_domains = set()
 
@@ -51,7 +46,7 @@ class SPF:
             if redirect_match:
                 redirect_domain = redirect_match.group(1)
                 if redirect_domain in visited_domains:
-                    break  # Prevent infinite loops in case of circular redirects
+                    break
                 visited_domains.add(redirect_domain)
                 spf_record = self.get_spf_record(redirect_domain)
             else:
@@ -60,38 +55,33 @@ class SPF:
         return None
 
     def get_spf_dns_queries(self):
-        """Returns the number of dns queries, redirects, and other mechanisms in the SPF record for a given domain."""
+        checked_domains = set()
+        domains_to_check = [self.domain]
+        count = 0
 
-        def count_dns_queries(spf_record):
-            count = 0
-            for item in spf_record.split():
-                if item.startswith("include:") or item.startswith("redirect="):
-                    if item.startswith("include:"):
-                        url = item.replace("include:", "")
-                    elif item.startswith("redirect="):
-                        url = item.replace("redirect=", "")
+        while domains_to_check:
+            current_domain = domains_to_check.pop()
+            if current_domain in checked_domains:
+                continue
+            checked_domains.add(current_domain)
+            try:
+                answers = dns.resolver.resolve(current_domain, "TXT")
+                for rdata in answers:
+                    txt_record = rdata.to_text().strip('"')
+                    if txt_record.startswith("v=spf1"):
+                        for item in txt_record.split():
+                            if item.startswith(("include:", "redirect=")):
+                                url = item.split(":", 1)[1] if ":" in item else item.split("=", 1)[1]
+                                domains_to_check.append(url)
+                                count += 1
+                        count += len(re.findall(r"[ ,+]a[ ,:]", txt_record))
+                        count += len(re.findall(r"[ ,+]mx[ ,:]", txt_record))
+                        count += len(re.findall(r"[ ]ptr[ ]", txt_record))
+                        count += len(re.findall(r"exists[:]", txt_record))
+            except Exception:
+                continue
 
-                    count += 1
-                    try:
-                        # Recursively fetch and count dns queries or redirects in the SPF record of the referenced domain
-                        answers = dns.resolver.resolve(url, "TXT")
-                        for rdata in answers:
-                            for txt_string in rdata.strings:
-                                txt_record = txt_string.decode("utf-8")
-                                if txt_record.startswith("v=spf1"):
-                                    count += count_dns_queries(txt_record)
-                    except Exception:
-                        pass
-
-            # Count occurrences of 'a', 'mx', 'ptr', and 'exists' mechanisms
-            count += len(re.findall(r"[ ,+]a[ ,:]", spf_record))
-            count += len(re.findall(r"[ ,+]mx[ ,:]", spf_record))
-            count += len(re.findall(r"[ ]ptr[ ]", spf_record))
-            count += len(re.findall(r"exists[:]", spf_record))
-
-            return count
-
-        return count_dns_queries(self.spf_record)
+        return count
 
     def __str__(self):
         return (
