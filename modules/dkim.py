@@ -21,7 +21,27 @@ class DKIM:
     def get_dkim_record(self):
         """Returns the DKIM record for the domain."""
         try:
-            resolver = dns.resolver.Resolver()
-            if self.dns_server:
+            selector, dkim_results = self.find_dkim_selector()
+            if selector:
+                self.selector = selector
+            if dkim_results:
+                self.dkim_record = dkim_results[0]
+        except Exception:
+            return None
+        return None
+    
+    def find_dkim_selector(self):
+        """Finds the DKIM selector for the domain."""
+        resolver = dns.resolver.Resolver()
+        if self.dns_server:
                 resolver.nameservers = [self.dns_server]
-            
+
+        for selector in USUAL_SELECTORS:
+            query = f"{selector}._domainkey.{self.domain}"
+            try:
+                answers = resolver.resolve(query, 'TXT')
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer): #, dns.resolver.Timeout):
+                continue
+            txts = [b"".join(rdata.strings).decode("utf-8") for rdata in answers]
+            return selector, txts
+                

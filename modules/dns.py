@@ -5,6 +5,7 @@ import socket
 from .spf import SPF
 from .dmarc import DMARC
 from .bimi import BIMI
+from .dkim import DKIM
 
 
 class DNS:
@@ -42,6 +43,7 @@ class DNS:
             self.spf_record = SPF(self.domain, self.soa_record)
             self.dmarc_record = DMARC(self.domain, self.soa_record)
             self.bimi_record = BIMI(self.domain, self.soa_record)
+            self.dkim_record = DKIM(self.domain, self.soa_record)
             if self.spf_record.spf_record and self.dmarc_record.dmarc_record:
                 return
 

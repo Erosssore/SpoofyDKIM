@@ -7,6 +7,7 @@ from modules.dns import DNS
 from modules.spf import SPF
 from modules.dmarc import DMARC
 from modules.bimi import BIMI
+from modules.dkim import DKIM
 from modules.spoofing import Spoofing
 from modules import report
 from modules.clean import clean_domains_from_file
@@ -19,6 +20,7 @@ def process_domain(domain):
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
     bimi_info = BIMI(domain, dns_info.dns_server)
+    dkim_info = DKIM(domain, dns_info.dns_server)
 
     spoofing_info = Spoofing(
         domain,
