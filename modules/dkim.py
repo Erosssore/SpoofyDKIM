@@ -25,7 +25,7 @@ class DKIM:
             if selector:
                 self.selector = selector
             if dkim_results:
-                self.dkim_record = dkim_results[0]
+                return dkim_results[0]
         except Exception:
             return None
         return None
