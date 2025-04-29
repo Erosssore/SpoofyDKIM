@@ -129,10 +129,24 @@ def printer(**kwargs):
 
     if dkim_record:
         #output_message("[*]", f"DKIM record: {dkim_record}", "info")
-        output_message("[*]", f"DKIM selector: {dkim_selector}", "info")
+        output_message("[*]", f"DKIM selector name found: {dkim_selector}", "info")
         output_message("[*]", f"DKIM version: {dkim_version}", "info")
-        output_message("[*]", f"DKIM algorithm: {dkim_algorithm}", "info")
-        output_message("[*]", f"DKIM key length: {dkim_key_length}", "info")
+        output_message("[*]", f"DKIM encryption algorithm: {dkim_algorithm}", "info")
+        output_message("[*]", f"DKIM public key length: {dkim_key_length} bits", "info")
+        if dkim_algorithm.startswith("rsa"):
+            weak_lengths = [128, 512, 768]
+            long_lengths = [2048, 3072, 4096, 8192]
+            if dkim_key_length in weak_lengths:
+                output_message("[!]", f"Warning: weak DKIM encryption key detected", "warning")
+            elif dkim_key_length == 1024:
+                output_message("[*]", f"Standard DKIM key length detected", "info")
+            elif dkim_key_length in long_lengths:
+                output_message("[*]", f"DKIM key length exceeds DNS TXT character limit - use care when implementing", "warning")
+            else:
+                output_message("[?]", f"DKIM key length: {dkim_key_length} bits (Unknown strength)", "indifferent")
+        #elliptic curve keys are all considered secure
+        else:
+            output_message("[*]", f"DKIM key length: {dkim_key_length} bits", "info")
             
 
     if spoofing_type:
