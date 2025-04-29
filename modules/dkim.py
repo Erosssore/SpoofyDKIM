@@ -12,14 +12,14 @@ class DKIM:
         self.version = None
         self.algorithm = None
         self.public_key = None
-        self.key_size = None
+        self.key_length = None
 
 
         if self.dkim_record:
             self.version = self.get_dkim_version()
             self.algorithm = self.get_dkim_algorithm()
             self.public_key = self.get_dkim_public_key()
-            self.key_size = self.get_key_size()
+            self.key_length = self.get_key_length()
 
     def get_dkim_record(self):
         """Returns the DKIM record for the domain."""
@@ -63,7 +63,7 @@ class DKIM:
             return self.dkim_record.split("p=")[1].split(";")[0]
         return None
     
-    def get_key_size(self):
+    def get_key_length(self):
         """Returns the key size of the DKIM public key."""
         try:
             der = base64.b64decode(self.public_key)

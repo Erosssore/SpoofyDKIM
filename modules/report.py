@@ -52,6 +52,11 @@ def printer(**kwargs):
     vbimi = kwargs.get("BIMI_VERSION")
     location = kwargs.get("BIMI_LOCATION")
     authority = kwargs.get("BIMI_AUTHORITY")
+    dkim_record = kwargs.get("DKIM")
+    dkim_selector = kwargs.get("DKIM_SELECTOR")
+    dkim_version = kwargs.get("DKIM_VERSION")
+    dkim_algorithm = kwargs.get("DKIM_ALGORITHM")
+    dkim_key_length = kwargs.get("DKIM_KEY_LENGTH")
     spoofable = kwargs.get("SPOOFING_POSSIBLE")
     spoofing_type = kwargs.get("SPOOFING_TYPE")
 
@@ -121,6 +126,14 @@ def printer(**kwargs):
         output_message("[*]", f"BIMI version: {vbimi}", "info")
         output_message("[*]", f"BIMI location: {location}", "info")
         output_message("[*]", f"BIMI authority: {authority}", "info")
+
+    if dkim_record:
+        #output_message("[*]", f"DKIM record: {dkim_record}", "info")
+        output_message("[*]", f"DKIM selector: {dkim_selector}", "info")
+        output_message("[*]", f"DKIM version: {dkim_version}", "info")
+        output_message("[*]", f"DKIM algorithm: {dkim_algorithm}", "info")
+        output_message("[*]", f"DKIM key length: {dkim_key_length}", "info")
+            
 
     if spoofing_type:
         level = "good" if spoofable else "bad"

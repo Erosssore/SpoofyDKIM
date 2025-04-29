@@ -20,7 +20,7 @@ def process_domain(domain):
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
     bimi_info = BIMI(domain, dns_info.dns_server)
-    dkim_info = DKIM(domain, dns_info.dns_server)
+    dkim = DKIM(domain, dns_info.dns_server)
 
     spoofing_info = Spoofing(
         domain,
@@ -53,6 +53,11 @@ def process_domain(domain):
         "BIMI_VERSION": bimi_info.version,
         "BIMI_LOCATION": bimi_info.location,
         "BIMI_AUTHORITY": bimi_info.authority,
+        "DKIM": dkim.dkim_record,
+        "DKIM_SELECTOR": dkim.selector,
+        "DKIM_VERSION": dkim.version,
+        "DKIM_ALGORITHM": dkim.algorithm,
+        "DKIM_KEY_LENGTH": dkim.key_length,
         "SPOOFING_POSSIBLE": spoofing_info.spoofing_possible,
         "SPOOFING_TYPE": spoofing_info.spoofing_type,
     }
