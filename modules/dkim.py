@@ -1,4 +1,6 @@
 import dns.resolver
+import base64
+from cryptography.hazmat.primitives import serialization
 
 USUAL_SELECTORS = ["default", "google", "selector1", "mail", "spf", "dkim"]
 
@@ -10,12 +12,14 @@ class DKIM:
         self.version = None
         self.algorithm = None
         self.public_key = None
+        self.key_size = None
 
 
         if self.dkim_record:
             self.version = self.get_dkim_version()
             self.algorithm = self.get_dkim_algorithm()
             self.public_key = self.get_dkim_public_key()
+            self.key_size = self.get_key_size()
 
     def get_dkim_record(self):
         """Returns the DKIM record for the domain."""
@@ -32,10 +36,6 @@ class DKIM:
     def find_dkim_selector(self):
         """Finds the DKIM selector for the domain."""
         resolver = dns.resolver.Resolver()
-        #using dns_server leads to unreliable dkim acquisition
-        #if self.dns_server:
-         #       resolver.nameservers = [self.dns_server]
-
         for selector in USUAL_SELECTORS:
             query = f"{selector}._domainkey.{self.domain}"
             try:
@@ -62,3 +62,13 @@ class DKIM:
         if "p=" in self.dkim_record:
             return self.dkim_record.split("p=")[1].split(";")[0]
         return None
+    
+    def get_key_size(self):
+        """Returns the key size of the DKIM public key."""
+        try:
+            der = base64.b64decode(self.public_key)
+            pub = serialization.load_der_public_key(der)
+            key_size = pub.key_size
+            return key_size
+        except Exception:
+            return None
